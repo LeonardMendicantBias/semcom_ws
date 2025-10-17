@@ -1,0 +1,3 @@
+[submodule "src/secom"]
+	path = src/secom
+	url = https://github.com/LeonardMendicantBias/semcom.git
