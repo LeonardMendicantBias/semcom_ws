@@ -2,3 +2,7 @@ __pycache__/
 checkpoint/
 wandb/
 .vscode/
+semcom_bu/
+build/
+install/
+log/
