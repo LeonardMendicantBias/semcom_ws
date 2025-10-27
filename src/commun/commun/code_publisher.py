@@ -32,7 +32,7 @@ class CodePublisher(Node):
         header.frame_id = "semcom"
         header.stamp = self.get_clock().now().to_msg()
         msg.header = header
-        msg.data = np.random.randint(0, 8192, (1024,), dtype=np.int16)
+        msg.data = np.random.randint(0, 8192, (150,), dtype=np.int16)
         self.publisher_.publish(msg)
         self.get_logger().info('Publishing:')
 

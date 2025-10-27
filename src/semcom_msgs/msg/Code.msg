@@ -1,3 +1,3 @@
 std_msgs/Header header
 
-int16[1024] data 
+int16[150] data 
