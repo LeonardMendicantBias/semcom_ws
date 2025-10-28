@@ -1,3 +1,4 @@
 std_msgs/Header header
 
-int16[150] data 
+uint16 length  # num of bits per code
+uint8[] data

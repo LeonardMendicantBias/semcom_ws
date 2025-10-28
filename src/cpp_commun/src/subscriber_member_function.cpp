@@ -16,7 +16,7 @@ class MinimalSubscriber : public rclcpp::Node
     }
 
   private:
-    void topic_callback(const semcom_msgs::msg::test & msg) const
+    void topic_callback(const semcom_msgs::msg::Test & msg) const
     {
       RCLCPP_INFO(this->get_logger(), "I heard: '%s' '%s'", msg.first_name.c_str(), msg.last_name.c_str());
     }
