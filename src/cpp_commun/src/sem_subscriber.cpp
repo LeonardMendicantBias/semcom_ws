@@ -1,7 +1,5 @@
 #include <memory>
-
 #include "rclcpp/rclcpp.hpp"
-// #include "std_msgs/msg/string.hpp"
 #include "semcom_msgs/msg/code.hpp"
 
 using std::placeholders::_1;
@@ -22,14 +20,14 @@ class SemSubscriber : public rclcpp::Node
       const size_t BITS_PER_VALUE = 13;
       const size_t total_bits = static_cast<size_t>(count) * BITS_PER_VALUE;
       const size_t required_bytes = (total_bits + 7) / 8;
-      
+
       if (count == 0) {
         RCLCPP_WARN(this->get_logger(), "Received length=0 -> nothing to decode");
         return;
       }
       if (msg->data.size() < required_bytes) {
         RCLCPP_ERROR(this->get_logger(),
-                    "Insufficient bytes: have %zu, need %zu for length=%u (bits=%zu)",
+                     "Insufficient bytes: have %zu, need %zu for length=%u (bits=%zu)",
                     msg->data.size(), required_bytes, count, total_bits);
         return;
       }
@@ -39,10 +37,8 @@ class SemSubscriber : public rclcpp::Node
         size_t bit_in_byte = bit_index % 8;
         return static_cast<uint8_t>((msg->data[byte_idx] >> (7 - bit_in_byte)) & 0x1);
       };
-
       std::vector<uint16_t> values;
       values.reserve(count);
-
       for (size_t i = 0; i < count; ++i) {
         uint16_t val = 0;
         size_t start_bit = i * BITS_PER_VALUE;
@@ -52,16 +48,22 @@ class SemSubscriber : public rclcpp::Node
         }
         values.push_back(val);
       }
-
       std::stringstream ss;
       ss << msg->header.stamp.sec << "." << msg->header.stamp.nanosec;
-      RCLCPP_INFO(this->get_logger(), "I heard: '%s'", ss.str().c_str());
+      rclcpp::Time t_msg(msg->header.stamp);
+      rclcpp::Time t_now = this->now();
+      rclcpp::Duration diff = t_now - t_msg;
+
+      RCLCPP_INFO(this->get_logger(),
+                "Msg delay: %.3f ms  (stamp: %.3f  now: %.3f)",
+                diff.seconds() * 1000.0,
+                t_msg.seconds(),
+                t_now.seconds());
       RCLCPP_INFO(this->get_logger(),
                   "Decoded %u values (bits=%zu, bytes=%zu). First 10: %s",
                   count, total_bits, msg->data.size(),
                   preview_values(values, 10).c_str());
     }
-
     std::string preview_values(const std::vector<uint16_t>& v, size_t n) {
       size_t m = std::min(n, v.size());
       std::string s;
@@ -71,7 +73,6 @@ class SemSubscriber : public rclcpp::Node
       }
       return s;
     }
-
     rclcpp::Subscription<semcom_msgs::msg::Code>::SharedPtr subscription_;
 };
 
@@ -80,5 +81,6 @@ int main(int argc, char * argv[])
   rclcpp::init(argc, argv);
   rclcpp::spin(std::make_shared<SemSubscriber>());
   rclcpp::shutdown();
+
   return 0;
 }
