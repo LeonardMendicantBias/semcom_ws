@@ -37,9 +37,9 @@ class ImageCodeSubscriber(Node):
 			1
 		)
 
-		config = get_config_from_file("./imagenet_vitvq_base.yaml")
+		config = get_config_from_file("./src/commun/commun/imagenet_vitvq_base.yaml")
 		vitvq: ViTVQ = initialize_from_config(config.model)
-		vitvq.init_from_ckpt("./checkpoint/imagenet_vitvq_base.ckpt")
+		vitvq.init_from_ckpt("./src/commun/commun/checkpoint/imagenet_vitvq_base.ckpt")
 		for param in vitvq.parameters():
 			param.requires_grad = False
 		vitvq.eval()

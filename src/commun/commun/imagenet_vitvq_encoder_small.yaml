@@ -1,6 +1,7 @@
 model:
   target: enhancing.modules.stage1.vitvqgan.ViTVQ
   params:
+    path: ./src/commun/commun/checkpoint/imagenet_vitvq_small.ckpt
     image_key: image
     image_size: 256
     patch_size: 8
