@@ -22,6 +22,7 @@ setup(
         'console_scripts': [
             'sub = commun.image_code_subscriber:main',
             'pub = commun.image_code_publisher:main',
+            'all = commun.image_code_all:main',
             'listener = commun.code_subscriber:main',
             'talker = commun.code_publisher:main',
         ],

@@ -40,8 +40,7 @@ class ImageCodePublisher(Node):
 			1
 		)
 
-		config = get_config_from_file("/home/nvidia/semcom_ws/src/commun/commun/imagenet_vitvq_encoder_base.yaml")
-
+		config = get_config_from_file("/home/nvidia/semcom_ws/src/commun/commun/imagenet_vitvq_encoder_small.yaml")
 		self.vitvq: ViTVQ = initialize_from_config(config.model)
 		for param in self.vitvq.parameters():
 			param.requires_grad = False

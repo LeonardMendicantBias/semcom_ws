@@ -37,9 +37,9 @@ class ImageCodeSubscriber(Node):
 			1
 		)
 
-		config = get_config_from_file("./src/commun/commun/imagenet_vitvq_base.yaml")
+		config = get_config_from_file("./src/commun/commun/imagenet_vitvq_small.yaml")
 		vitvq: ViTVQ = initialize_from_config(config.model)
-		vitvq.init_from_ckpt("./src/commun/commun/checkpoint/imagenet_vitvq_base.ckpt")
+		vitvq.init_from_ckpt("./src/commun/commun/checkpoint/imagenet_vitvq_small.ckpt")
 		for param in vitvq.parameters():
 			param.requires_grad = False
 		vitvq.eval()
@@ -54,6 +54,8 @@ class ImageCodeSubscriber(Node):
 		self.l = []
 
 		self.bridge = CvBridge()
+		self.base_size = (256, 256)
+		self.ratio = (2, 3)
 
 	def encode_codes(self, x: torch.FloatTensor) -> torch.LongTensor:
 		h = self.encoder(x)
@@ -87,7 +89,7 @@ class ImageCodeSubscriber(Node):
 			return
 
 		self.get_logger().info(f'codes: {"-".join([str(c) for c in codes_np[:10]])}')
-		codes = torch.from_numpy(codes_np).long().unsqueeze(0).cuda()
+		codes = torch.from_numpy(codes_np).long().reshape(-1, 1024).cuda()
 
 		# decoding
 		with torch.no_grad():
@@ -99,8 +101,12 @@ class ImageCodeSubscriber(Node):
 				
 			quant = self.post_quant(quant)
 			dec = self.decoder(quant)
-
-		dec_img = dec.squeeze(0).permute(1, 2, 0).cpu().numpy()
+		
+		_dec = dec.reshape(1, self.ratio[0], self.ratio[1], 3, self.base_size[0], self.base_size[1])   # [1, H_blocks, W_blocks, C, 256, 256]
+		_dec = _dec.permute(0, 3, 1, 4, 2, 5)       # [1, 3, 3, 256, 2, 256]
+		_dec = _dec.reshape(1, 3, self.base_size[0]*self.ratio[0], self.base_size[1]*self.ratio[1])         # [1, 3, 768, 512]
+		
+		dec_img = _dec.squeeze(0).permute(1, 2, 0).cpu().numpy()
 		dec_img = dec_img.clip(0, 1)
 
 		dec_img = (dec_img * 255).astype(np.uint8)
@@ -108,7 +114,7 @@ class ImageCodeSubscriber(Node):
 		# plt.savefig("./img.png")
 		# resize: (width=424, height=240)
 		dec_img = cv2.resize(
-			dec_img, (424, 240),
+			dec_img, (640, 480),
 			interpolation=cv2.INTER_LINEAR
 		)
 		_msg = self.bridge.cv2_to_imgmsg(dec_img, encoding="rgb8")
