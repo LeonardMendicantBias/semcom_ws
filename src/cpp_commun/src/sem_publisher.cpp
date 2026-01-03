@@ -20,14 +20,14 @@ class SemPublisher : public rclcpp::Node
 			publisher_ = this->create_publisher<semcom_msgs::msg::Code>(
 				"/camera/camera/color/image_code", 10);
 			timer_ = this->create_wall_timer(
-		        500ms, std::bind(&SemPublisher::timer_callback, this)
+		        67ms, std::bind(&SemPublisher::timer_callback, this)
       		);	
 		}
 
 	private:
 		void timer_callback() const
 		{
-			const int N = 500;
+			const int N = 1024*13;
 			const int BITS_PER_VALUE = 13;
 			const int TOTAL_BITS = N * BITS_PER_VALUE;
 			auto message = semcom_msgs::msg::Code();

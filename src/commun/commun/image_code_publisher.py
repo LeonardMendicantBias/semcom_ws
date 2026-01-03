@@ -1,5 +1,6 @@
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
 
 import numpy as np
 import cv2
@@ -33,14 +34,19 @@ class ImageCodePublisher(Node):
 			Image,
 			'/camera/camera/color/image_raw',
 			self.listener_callback,
-			1
+			qos_profile=QoSProfile(
+				history=HistoryPolicy.KEEP_LAST,
+				depth=1,
+				reliability=ReliabilityPolicy.BEST_EFFORT,
+				# durability=DurabilityPolicy.VOLATILE
+			)
 		)
 		self.publisher = self.create_publisher(
 			Code, '/camera/camera/color/image_raw/code',
 			1
 		)
 
-		config = get_config_from_file("/home/nvidia/semcom_ws/src/commun/commun/imagenet_vitvq_encoder_small.yaml")
+		config = get_config_from_file("./src/commun/commun/imagenet_vitvq_encoder_small.yaml")
 		self.vitvq: ViTVQ = initialize_from_config(config.model)
 		for param in self.vitvq.parameters():
 			param.requires_grad = False
@@ -51,6 +57,8 @@ class ImageCodePublisher(Node):
 		self.l = []
 
 		self.bits_per_code = 13
+		self.base_size = (256, 256)
+		self.ratio = (1, 2)
 		
 	def listener_callback(self, msg: Image):
 		now_ns = self.get_clock().now().nanoseconds
@@ -67,7 +75,7 @@ class ImageCodePublisher(Node):
 		img = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
 		
 		image_resized = resize(
-			img, (256, 256),
+			img, (self.base_size[0]*self.ratio[0], self.base_size[1]*self.ratio[1]),
 			preserve_range=True, anti_aliasing=True
 		).astype(np.uint8)
 		input_data = (
@@ -78,12 +86,17 @@ class ImageCodePublisher(Node):
 			.float()
 			/ 255.0
 		)
+
+		batch_input_data = input_data.reshape(1, 3, self.ratio[0], self.base_size[0], self.ratio[1], self.base_size[1])      	# [1, 3, H_blocks, 256, W_blocks, 256]
+		batch_input_data = batch_input_data.permute(0, 2, 4, 1, 3, 5)		# [1, 3, 2, 3, 256, 256]
+		batch_input_data = batch_input_data.reshape(self.ratio[0]*self.ratio[1], 3, self.base_size[0], self.base_size[1])         # [6, 3, 256, 256]
 		
 		# encoding
 		with torch.no_grad(), torch.autocast("cuda", torch.float16):
-			codes = self.vitvq.encode_codes(input_data)
+			codes = self.vitvq.encode_codes(batch_input_data)
 
 		codes = codes.detach().to("cpu").contiguous().numpy()
+		print(codes.shape)
 		self.get_logger().info(f'codes: {"-".join([str(c) for c in codes[0, :10]])}')
 
 		codes = codes.astype(np.uint16).reshape(-1)
@@ -105,7 +118,7 @@ class ImageCodePublisher(Node):
 		_msg.header.stamp = self.get_clock().now().to_msg()
 		_msg.header.frame_id = msg.header.frame_id
 
-		_msg.length = 1024
+		_msg.length = 1024*self.ratio[0]*self.ratio[1]
 		_msg.data = packed.tolist()  # uint8[]
 
 		self.publisher.publish(_msg)

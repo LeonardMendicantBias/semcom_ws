@@ -1,16 +1,11 @@
 model:
-  target: enhancing.modules.stage1.vitvqgan.ViTVQ
+  target: enhancing.modules.stage1.vitvqgan.ViTVQEncoder
   params:
-    path: ./src/commun/commun/checkpoint/imagenet_vitvq_small.ckpt
+    path: /home/nvidia/semcom_ws/src/commun/commun/checkpoint/imagenet_vitvq_small.ckpt
     image_key: image
     image_size: 256
     patch_size: 8
     encoder:
-      dim: 512
-      depth: 8
-      heads: 8
-      mlp_dim: 2048
-    decoder:
       dim: 512
       depth: 8
       heads: 8
