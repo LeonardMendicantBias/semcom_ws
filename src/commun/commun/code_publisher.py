@@ -18,11 +18,6 @@ class CodePublisher(Node):
             self.listener_callback,
             1
         )
-        self.publisher_ = self.create_publisher(
-            Code,
-            '/camera/camera/color/code',
-            1
-        )
 
     def listener_callback(self, msg):
         # self.get_logger().info('I heard: "%s"' % msg.header.stamp)

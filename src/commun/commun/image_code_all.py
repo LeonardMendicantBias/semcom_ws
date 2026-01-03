@@ -17,8 +17,13 @@ from enhancing.modules.stage1.layers import ViTEncoder as Encoder, ViTDecoder as
 from enhancing.modules.stage1.quantizers import VectorQuantizer, GumbelQuantizer
 from enhancing.utils.general import get_config_from_file, initialize_from_config
 
+from taming.models.vqgan import VQModel
+
 from std_msgs.msg import Header
 from semcom_msgs.msg import Code
+
+from skimage import data
+from skimage.transform import resize
 
 
 class ImageCodeSubscriber(Node):
@@ -41,27 +46,35 @@ class ImageCodeSubscriber(Node):
 			1
 		)
 
-		config = get_config_from_file("./src/commun/commun/imagenet_vitvq_small.yaml")
-		self.vitvq: ViTVQ = initialize_from_config(config.model)
-		self.vitvq.init_from_ckpt("./src/commun/commun/checkpoint/imagenet_vitvq_small.ckpt")
-		for param in self.vitvq.parameters():
+		config = get_config_from_file("./src/commun/commun/imagenet_vitvq_base.yaml")
+		self.model: ViTVQ = initialize_from_config(config.model)
+		self.model.init_from_ckpt("./src/commun/commun/checkpoint/imagenet_vitvq_base.ckpt")
+		for param in self.model.parameters():
 			param.requires_grad = False
-		self.vitvq.eval()
-		self.vitvq.cuda()
+		self.model.eval()
+		self.model.cuda()
+
+		# config = get_config_from_file("./src/commun/commun/vqgan_f16_16384.yaml")  # 2^14
+		# self.model: VQModel = initialize_from_config(config.model)
+		# self.model.init_from_ckpt("./src/commun/commun/checkpoint/vqgan_f16_16384.ckpt")
+		# for param in self.model.parameters():
+		# 	param.requires_grad = False
+		# self.model.eval()
+		# self.model.cuda()
 		
 		# self.quantizer = vitvq.quantizer
 		# self.post_quant = vitvq.post_quant
 		# self.decoder = vitvq.decoder
 		# del vitvq
 
-		self.bits_per_code = 13
+		self.bits_per_code = 14
 		self.l = []
 		self.mse = []
 		
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		self.bridge = CvBridge()
 		self.base_size = (256, 256)
-		self.ratio = (2, 2)
+		self.ratio = (1, 1)
 
 	def encode_codes(self, x: torch.FloatTensor) -> torch.LongTensor:
 		h = self.encoder(x)
@@ -123,7 +136,6 @@ class ImageCodeSubscriber(Node):
 			.permute(2, 0, 1)
 			.unsqueeze(0)
 			.to(self.device)
-			.float()
 			/ 255.0
 		)
 
@@ -133,15 +145,21 @@ class ImageCodeSubscriber(Node):
 		# print(input_data.shape, batch_input_data.shape)
 
 		with torch.no_grad():
-			codes = self.vitvq.encode_codes(batch_input_data)
-			dec = self.vitvq.decode_codes(codes)
+			codes = self.model.encode_codes(batch_input_data)
+			dec = self.model.decode_codes(codes)
+
+			# _, _, _codes = self.model.encode(batch_input_data*2 -1)
+			# codes = _codes[-1]
+			# z_q = self.model.quantize.embedding(codes).reshape(self.ratio[0]*self.ratio[1], 16, 16, 256).permute(0, 3, 1, 2)
+			# dec = self.model.decode(z_q).add(1).div(2)#.cpu().squeeze().permute(1, 2, 0)
 		self.publish_code(codes, msg.header.frame_id)
 
 		_dec = dec.reshape(1, self.ratio[0], self.ratio[1], 3, self.base_size[0], self.base_size[1])   # [1, H_blocks, W_blocks, C, 256, 256]
 		_dec = _dec.permute(0, 3, 1, 4, 2, 5)       # [1, 3, 3, 256, 2, 256]
 		_dec = _dec.reshape(1, 3, self.base_size[0]*self.ratio[0], self.base_size[1]*self.ratio[1])         # [1, 3, 768, 512]
-		dec_img = _dec.squeeze(0).permute(1, 2, 0).cpu().numpy()
+		dec_img = _dec.squeeze(0).cpu().permute(1, 2, 0).numpy()
 		dec_img = dec_img.clip(0, 1)
+		# dec_img = (dec_img)
 
 		dec_img = (dec_img * 255).astype(np.uint8)
 		# plt.imshow(dec_img)

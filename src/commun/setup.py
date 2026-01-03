@@ -20,6 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'latency = commun.latency:main',
             'sub = commun.image_code_subscriber:main',
             'pub = commun.image_code_publisher:main',
             'all = commun.image_code_all:main',
