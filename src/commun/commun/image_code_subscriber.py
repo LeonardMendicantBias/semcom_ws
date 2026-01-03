@@ -1,5 +1,6 @@
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
 
 import numpy as np
 import cv2
@@ -55,7 +56,7 @@ class ImageCodeSubscriber(Node):
 
 		self.bridge = CvBridge()
 		self.base_size = (256, 256)
-		self.ratio = (2, 3)
+		self.ratio = (1, 2)
 
 	def encode_codes(self, x: torch.FloatTensor) -> torch.LongTensor:
 		h = self.encoder(x)
@@ -120,6 +121,7 @@ class ImageCodeSubscriber(Node):
 		_msg = self.bridge.cv2_to_imgmsg(dec_img, encoding="rgb8")
 		_msg.header.stamp = self.get_clock().now().to_msg()
 		_msg.header.frame_id = msg.header.frame_id
+		# print("msg", msg.header.frame_id)
 
 		self.publisher.publish(_msg)
 		
